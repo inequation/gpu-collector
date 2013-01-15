@@ -1,0 +1,3 @@
+This a tiny tool to collect GPU information from a Linux box using sysfs.
+
+Written by Leszek Godlewski <github@inequation.org>
