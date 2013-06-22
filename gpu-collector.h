@@ -8,21 +8,21 @@
 #include <stdlib.h>
 
 #if 0
-#define debugf printf
+#define gpuc_debugf printf
 #else
-#define debugf (void)
+#define gpuc_debugf (void)
 #endif
 
-static int get_default_X_display()
+static int gpuc_get_default_X_display()
 {
 	int display = 0;
 	char *display_env = getenv("DISPLAY");
-	debugf("$DISPLAY = %s\n", display_env);
+	gpuc_debugf("$DISPLAY = %s\n", display_env);
 	sscanf(display_env, ":%d", &display);
 	return display;
 }
 
-static void parse_memory_from_log(FILE *f, const char *format, unsigned int *memory, unsigned int read_multiplier)
+static void gpuc_parse_memory_from_log(FILE *f, const char *format, unsigned int *memory, unsigned int read_multiplier)
 {
 	unsigned int match;
 	int scan_result;
@@ -32,7 +32,7 @@ static void parse_memory_from_log(FILE *f, const char *format, unsigned int *mem
 	{
 		if (scan_result)
 		{
-			debugf("Got match: %d\n", match);
+			gpuc_debugf("Got match: %d\n", match);
 			match *= read_multiplier;
 			if (*memory < match)
 				*memory = match;
@@ -45,7 +45,7 @@ static void parse_memory_from_log(FILE *f, const char *format, unsigned int *mem
 	}
 }
 
-static int enumerate_gpus(void (* found_callback)(unsigned int vendor,
+static int gpuc_enumerate_gpus(void (* found_callback)(unsigned int vendor,
 	unsigned int device, unsigned int memory_bytes))
 {
 	int i;
@@ -56,7 +56,7 @@ static int enumerate_gpus(void (* found_callback)(unsigned int vendor,
 	pci_devices = opendir("/sys/bus/pci/devices");
 	if (!pci_devices)
 	{
-		debugf("Failed to access sysfs\n");
+		gpuc_debugf("Failed to access sysfs\n");
 		return 1;
 	}
 	while ((device_dir = readdir(pci_devices)) != NULL)
@@ -68,18 +68,18 @@ static int enumerate_gpus(void (* found_callback)(unsigned int vendor,
 		// skip ".", ".." and dotfiles
 		if (device_dir->d_name[0] == '.')
 		{
-			debugf("Dotfile, skipping\n");
+			gpuc_debugf("Dotfile, skipping\n");
 			continue;
 		}
 
 		snprintf(path_buf, sizeof(path_buf), "/sys/bus/pci/devices/%s",
 			device_dir->d_name);
 
-		debugf("Entering %s\n", path_buf);
+		gpuc_debugf("Entering %s\n", path_buf);
 		subdir = opendir(path_buf);
 		if (!subdir)
 		{
-			debugf("Can't access %s, skipping\n", path_buf);
+			gpuc_debugf("Can't access %s, skipping\n", path_buf);
 			continue;
 		}
 
@@ -139,7 +139,7 @@ static int enumerate_gpus(void (* found_callback)(unsigned int vendor,
 		}
 		if (!d_class)
 			continue;
-		debugf("Detected VGA device: vendor = %04x, device = %04x\n",
+		gpuc_debugf("Detected VGA device: vendor = %04x, device = %04x\n",
 			d_vendor, d_device);
 		switch (d_vendor)
 		{
@@ -148,9 +148,9 @@ static int enumerate_gpus(void (* found_callback)(unsigned int vendor,
 				// X11 module prints VRAM size to log
 				FILE *f;				
 				snprintf(path_buf, sizeof(path_buf), "/var/log/Xorg.%d.log",
-					get_default_X_display());
+					gpuc_get_default_X_display());
 				f = fopen(path_buf, "r");
-				parse_memory_from_log(f, " NVIDIA(%*d): Memory: %d kBytes",
+				gpuc_parse_memory_from_log(f, " NVIDIA(%*d): Memory: %d kBytes",
 					&d_memory, 1024);
 				if (f)
 					fclose(f);
@@ -160,14 +160,19 @@ static int enumerate_gpus(void (* found_callback)(unsigned int vendor,
 			{
 				// drm kernel module prints VRAM size to dmesg
 				FILE *p = popen("dmesg", "r");
-				parse_memory_from_log(p, " [drm] Detected VRAM RAM=%dM",
+				gpuc_parse_memory_from_log(p, " [drm] Detected VRAM RAM=%dM",
 					&d_memory, 1024 * 1024);
 				if (p)
 					pclose(p);
 				break;
 			}
-			default:
+			case 0x8086:	// Intel
+			{
 				// the stolen memory reading is fine on Intel
+			}
+			default:
+				gpuc_debugf("Can't detect actual VRAM quantity for this GPU "
+					"vendor, falling back on DMA memory range");
 				break;
 		}
 		found_callback(d_vendor, d_device, d_memory);

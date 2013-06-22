@@ -11,5 +11,5 @@ void found_gpu(unsigned int vendor,
 
 int main(int argc, char *argv[])
 {
-	return enumerate_gpus(found_gpu);
+	return gpuc_enumerate_gpus(found_gpu);
 }
