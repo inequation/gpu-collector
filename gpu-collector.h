@@ -1,3 +1,12 @@
+/**
+ * gpu-collector
+ * 
+ * A tiny tool to collect GPU information from a Linux box using sysfs.
+ * Written by Leszek Godlewski. Released into the public domain.
+ * 
+ * http://github.com/inequation/gpu-collector
+ */
+
 #ifndef GPU_COLLECTOR_H
 #define GPU_COLLECTOR_H
 
